@@ -21,6 +21,34 @@
             </div>
         </div>
 
+        <div class="bg-white p-6 rounded-lg shadow mb-8 border-l-4 border-blue-500">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">➕ Quick Add Order</h2>
+            <form id="addOrderForm" class="flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Customer Name</label>
+                    <input type="text" id="custName" required class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Phone</label>
+                    <input type="text" id="custPhone" required class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Garment</label>
+                    <select id="garmentType" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500">
+                        <option value="Shirt|50">Shirt (₹50)</option>
+                        <option value="Pants|80">Pants (₹80)</option>
+                        <option value="Saree|200">Saree (₹200)</option>
+                        <option value="Suit|300">Suit (₹300)</option>
+                    </select>
+                </div>
+                <div class="w-24">
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Qty</label>
+                    <input type="number" id="qty" value="1" min="1" required class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition">Create</button>
+            </form>
+        </div>
+
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <table class="w-full text-left">
                 <thead class="bg-gray-50 border-b">
@@ -38,35 +66,84 @@
     </div>
 
     <script>
-        const API_KEY = 'Bearer LAUNDRY_SECRET_2026';
+        // NOTE: Ensure this exactly matches the Render environment variable!
+        const API_KEY = 'Bearer LAUNDRY_SECRET_2024'; 
         const headers = { 'Authorization': API_KEY };
 
+        // 1. Fetch and Display Data
         async function fetchDashboard() {
             try {
-                // Fetch Analytics
                 const dashRes = await fetch('/api/orders/dashboard', { headers });
                 const dashData = await dashRes.json();
-                document.getElementById('totalOrders').innerText = dashData.totalOrders;
-                document.getElementById('totalRevenue').innerText = `₹${dashData.totalRevenue}`;
+                
+                if (dashRes.ok) {
+                    document.getElementById('totalOrders').innerText = dashData.totalOrders || 0;
+                    document.getElementById('totalRevenue').innerText = `₹${dashData.totalRevenue || 0}`;
+                }
 
-                // Fetch Orders
                 const orderRes = await fetch('/api/orders', { headers });
                 const orders = await orderRes.json();
                 
-                const tableBody = document.getElementById('orderList');
-                tableBody.innerHTML = orders.map(order => `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-4 font-medium">${order.customer}</td>
-                        <td class="p-4"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">${order.status}</span></td>
-                        <td class="p-4 text-gray-600">${new Date(order.estimatedDelivery).toLocaleDateString()}</td>
-                        <td class="p-4 font-bold">₹${order.totalBill}</td>
-                    </tr>
-                `).join('');
+                if (orderRes.ok) {
+                    const tableBody = document.getElementById('orderList');
+                    tableBody.innerHTML = orders.map(order => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-4 font-medium">${order.customer}</td>
+                            <td class="p-4"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">${order.status}</span></td>
+                            <td class="p-4 text-gray-600">${new Date(order.estimatedDelivery).toLocaleDateString()}</td>
+                            <td class="p-4 font-bold">₹${order.totalBill}</td>
+                        </tr>
+                    `).join('');
+                }
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
         }
 
+        // 2. Handle Form Submission
+        document.getElementById('addOrderForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Stops the page from refreshing and throwing that error!
+            
+            const garmentVal = document.getElementById('garmentType').value.split('|');
+            
+            const payload = {
+                customer: document.getElementById('custName').value,
+                phone: document.getElementById('custPhone').value,
+                items: [{
+                    garmentName: garmentVal[0],
+                    price: parseInt(garmentVal[1]),
+                    quantity: parseInt(document.getElementById('qty').value)
+                }]
+            };
+
+            try {
+                const btn = e.target.querySelector('button');
+                btn.innerText = 'Saving...';
+                
+                // IMPORTANT: Pointing to /api/orders
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': API_KEY,
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    e.target.reset(); 
+                    fetchDashboard(); // Instantly update the UI
+                } else {
+                    alert("Failed to create order. Check your API Key.");
+                }
+            } catch (err) {
+                console.error("Error creating order:", err);
+            } finally {
+                e.target.querySelector('button').innerText = 'Create';
+            }
+        });
+
+        // Load data on start
         fetchDashboard();
     </script>
 </body>
