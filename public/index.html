@@ -54,7 +54,7 @@
                 <thead class="bg-gray-50 border-b">
                     <tr>
                         <th class="p-4">Customer</th>
-                        <th class="p-4">Status</th>
+                        <th class="p-4">Status (Click to Change)</th>
                         <th class="p-4">Delivery Date</th>
                         <th class="p-4">Total</th>
                     </tr>
@@ -66,9 +66,12 @@
     </div>
 
     <script>
-        // NOTE: Ensure this exactly matches the Render environment variable!
+        // Ensure this matches your .env / Render config exactly
         const API_KEY = 'Bearer LAUNDRY_SECRET_2026'; 
-        const headers = { 'Authorization': API_KEY };
+        const headers = { 
+            'Authorization': API_KEY,
+            'Content-Type': 'application/json'
+        };
 
         // 1. Fetch and Display Data
         async function fetchDashboard() {
@@ -89,7 +92,15 @@
                     tableBody.innerHTML = orders.map(order => `
                         <tr class="hover:bg-gray-50">
                             <td class="p-4 font-medium">${order.customer}</td>
-                            <td class="p-4"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">${order.status}</span></td>
+                            <td class="p-4">
+                                <button 
+                                    onclick="cycleStatus('${order.id}', '${order.status}')"
+                                    class="px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer hover:ring-2 hover:ring-offset-1 
+                                    ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}"
+                                >
+                                    ${order.status} ↻
+                                </button>
+                            </td>
                             <td class="p-4 text-gray-600">${new Date(order.estimatedDelivery).toLocaleDateString()}</td>
                             <td class="p-4 font-bold">₹${order.totalBill}</td>
                         </tr>
@@ -102,10 +113,9 @@
 
         // 2. Handle Form Submission
         document.getElementById('addOrderForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Stops the page from refreshing and throwing that error!
+            e.preventDefault();
             
             const garmentVal = document.getElementById('garmentType').value.split('|');
-            
             const payload = {
                 customer: document.getElementById('custName').value,
                 phone: document.getElementById('custPhone').value,
@@ -120,21 +130,17 @@
                 const btn = e.target.querySelector('button');
                 btn.innerText = 'Saving...';
                 
-                // IMPORTANT: Pointing to /api/orders
                 const response = await fetch('/api/orders', {
                     method: 'POST',
-                    headers: { 
-                        'Authorization': API_KEY,
-                        'Content-Type': 'application/json' 
-                    },
+                    headers: headers,
                     body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
                     e.target.reset(); 
-                    fetchDashboard(); // Instantly update the UI
+                    fetchDashboard();
                 } else {
-                    alert("Failed to create order. Check your API Key.");
+                    alert("Failed to create order. Check your API Key config.");
                 }
             } catch (err) {
                 console.error("Error creating order:", err);
@@ -143,7 +149,35 @@
             }
         });
 
-        // Load data on start
+        // 3. Handle Status Updates
+        async function cycleStatus(orderId, currentStatus) {
+            const statusCycle = ['RECEIVED', 'PROCESSING', 'READY', 'DELIVERED'];
+            const currentIndex = statusCycle.indexOf(currentStatus);
+            
+            if (currentIndex === statusCycle.length - 1) {
+                alert("Order is already fully delivered!");
+                return;
+            }
+            
+            const nextStatus = statusCycle[currentIndex + 1];
+
+            try {
+                const response = await fetch(`/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: headers,
+                    body: JSON.stringify({ status: nextStatus })
+                });
+
+                if (response.ok) {
+                    fetchDashboard();
+                } else {
+                    alert("Failed to update status.");
+                }
+            } catch (err) {
+                console.error("Error updating status:", err);
+            }
+        }
+
         fetchDashboard();
     </script>
 </body>
