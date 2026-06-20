@@ -10,7 +10,7 @@ This project is designed to be evaluated instantly with zero heavy configuration
 
 1. **Clone the repository:**
    ```bash
-   git clone [INSERT YOUR GITHUB REPO LINK HERE]
+   git clone https://github.com/SlimmShadyyy/Mini-Laundry-Order-Management-System.git
    cd laundry-system
    ```
 
